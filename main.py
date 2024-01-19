@@ -1,7 +1,14 @@
 from openai import OpenAI
 import config
 import saveResponse
+import typer
+from rich import print
+from rich.table import Table
 
+
+#global variables
+
+messages = []
 
 # Inicialización del cliente OpenAI
 client = OpenAI(api_key=config.api_key)
@@ -20,33 +27,71 @@ def get_openai_response(messages):
 
 # Función principal del programa
 def main():
+
+    #imprime mensaje inicial
+    print("💬 [bold green]ChatGPT API en Python[/bold green]")
+
+    #Tabla comandos
+    table = Table("Comando","Descripcion")
+    table.add_row("exit","Salir de la aplicación")
+    table.add_row("new","Empieza una conversacion nueva")
+
+    print(table)
+    
     messages = init_context()
 
+    
     # Cargar la última respuesta si existe
     last_response = saveResponse.retrieveLastResponse()
-    if isinstance(last_response, dict):
-        messages.append(last_response)
-
+    if last_response is not None:
+        messages.extend(last_response)
+    
     while True:
 
-        content = input("¿Sobre que quieres hablar?\n")
+        content = _prompt()
 
-        if content == "Adios":
-            break
+        if content =="new":
+            saveResponse.saveResponse(messages)
+            messages = init_context()
+            content = _prompt()
+            print("🆕 Nueva conversación creada")
 
-        messages.append({"role": "user", "content": content})
+        __saveResponseUser(content)
+
+        #print[f"[red]{content}[red]"]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=messages
         )
+
+        response_content = response.choices[0].message.content
     
-        messages.append({"role": "assitant", "content": response})
+        __saveResponseAssistant(response_content)
 
-        print(response.choices[0].message.content)
+        print(f"[bold green]> [/bold green] [green]{response_content}[/green]")
 
-    # Guardar la última respuesta al salir
-    saveResponse.saveResponse(response)
+
+def __saveResponseAssistant(response):
+    messages.append({"role": "assistant", "content": response})
+
+def __saveResponseUser(response):
+    messages.append({"role": "user", "content": response})
+
+def _prompt() -> str:
+    prompt = typer.prompt("¿Sobre que quieres hablar?\n")
+    if prompt == "exit":
+        exit = typer.confirm("❗ ¿Estas Seguro?")
+        if exit:
+            print("👋 ¡Adios!")
+            # Guardar la última respuesta al salir
+            saveResponse.saveResponse(messages)
+            raise typer.Abort()
+        return _prompt()
+    
+    return prompt
+    
+
 
 if __name__ == "__main__":
-    main()
+    typer.run(main)

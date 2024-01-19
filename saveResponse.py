@@ -27,7 +27,7 @@ def saveResponse(response):
 def retrieveLastResponse():
     # Verificar si existe el directorio de backup
     if not os.path.exists("backup"):
-        return "No hay respuestas guardadas."
+        return None
 
     # Obtener la lista de archivos en el directorio de backup
     files = os.listdir("backup")
@@ -38,13 +38,17 @@ def retrieveLastResponse():
 
     # Verificar si hay archivos en la lista
     if not files:
-        return "No hay respuestas guardadas."
+        return None
 
     # Abrir el archivo más reciente y cargar la respuesta
     with open(f"backup/{files[0]}", 'r') as file:
-        response = json.load(file)
+        response_list = json.load(file)
 
-    return response
+    # Devolver todos los mensajes menos el primero
+    if response_list and isinstance(response_list, list) and len(response_list) > 1:
+        return response_list[1:]  # Excluye el primer elemento
+    else:
+        return None
 
 # Ejemplo de uso de la función
 #last_response = retrieveLastResponse()
